@@ -1,0 +1,727 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "beego Test API",
+        "description": "beego has a very cool tools to autogenerate documents for your API\n",
+        "version": "1.0.0",
+        "termsOfService": "http://beego.me/",
+        "contact": {
+            "email": "astaxie@gmail.com"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        }
+    },
+    "basePath": "/v1",
+    "paths": {
+        "/callback/process": {
+            "post": {
+                "tags": [
+                    "callback"
+                ],
+                "description": "create Callback\n\u003cbr\u003e",
+                "operationId": "CallbackController.Create",
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "body for Callback content",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.CallbackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/responses.CallbackResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "body is empty"
+                    }
+                }
+            }
+        },
+        "/requests/": {
+            "get": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "get Request\n\u003cbr\u003e",
+                "operationId": "RequestController.Get All",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "query",
+                        "description": "Filter. e.g. col1:v1,col2:v2 ...",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "fields",
+                        "description": "Fields returned. e.g. col1,col2 ...",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortby",
+                        "description": "Sorted-by fields. e.g. col1,col2 ...",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "order",
+                        "description": "Order corresponding to each sortby field, if single value, apply to all sortby fields. e.g. desc,asc ...",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "description": "Limit the size of result set. Must be an integer",
+                        "type": "string"
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "description": "Start position of result set. Must be an integer",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    },
+                    "403": {
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/requests/bundles/{networkId}/{destinationPhoneNumber}": {
+            "get": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "get data Bundles\n\u003cbr\u003e",
+                "operationId": "RequestController.Get Bundles",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "PhoneNumber",
+                        "description": "header for Customer's phone number",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "header",
+                        "name": "SourceSystem",
+                        "description": "header for Source system",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "path",
+                        "name": "networkId",
+                        "description": "The key for staticblock",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "path",
+                        "name": "destinationPhoneNumber",
+                        "description": "The key for staticblock",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    },
+                    "403": {
+                        "description": ":network is empty"
+                    }
+                }
+            }
+        },
+        "/requests/buy-airtime": {
+            "post": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "create Request\n\u003cbr\u003e",
+                "operationId": "RequestController.Post",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "PhoneNumber",
+                        "description": "header for Customer's phone number",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "header",
+                        "name": "SourceSystem",
+                        "description": "header for Source system",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "body for Request content",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.AirtimeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "{int} models.Request"
+                    },
+                    "403": {
+                        "description": "body is empty"
+                    }
+                }
+            }
+        },
+        "/requests/buy-bundle": {
+            "post": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "create Request\n\u003cbr\u003e",
+                "operationId": "RequestController.Buy Data",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "PhoneNumber",
+                        "description": "header for Customer's phone number",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "header",
+                        "name": "SourceSystem",
+                        "description": "header for Source system",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "body for Request content",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/requests.DataBundleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "{int} models.Request"
+                    },
+                    "403": {
+                        "description": "body is empty"
+                    }
+                }
+            }
+        },
+        "/requests/{id}": {
+            "get": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "get Request by id\n\u003cbr\u003e",
+                "operationId": "RequestController.Get One",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "description": "The key for staticblock",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    },
+                    "403": {
+                        "description": ":id is empty"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "update the Request\n\u003cbr\u003e",
+                "operationId": "RequestController.Put",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "description": "The id you want to update",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "description": "body for Request content",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/models.Request"
+                        }
+                    },
+                    "403": {
+                        "description": ":id is not int"
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "requests"
+                ],
+                "description": "delete the Request\n\u003cbr\u003e",
+                "operationId": "RequestController.Delete",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "description": "The id you want to delete",
+                        "required": true,
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{string} delete success!"
+                    },
+                    "403": {
+                        "description": "id is empty"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.Customer_categories": {
+            "title": "Customer_categories",
+            "type": "object",
+            "properties": {
+                "Active": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "Category": {
+                    "type": "string"
+                },
+                "CreatedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "CustomerCategoryId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "DateCreated": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "DateModified": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "Description": {
+                    "type": "string"
+                },
+                "ModifiedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "models.Customers": {
+            "title": "Customers",
+            "type": "object",
+            "properties": {
+                "Active": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "CreatedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "CustomerCategory": {
+                    "$ref": "#/definitions/models.Customer_categories"
+                },
+                "CustomerId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "DateCreated": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "DateModified": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "Dob": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "Email": {
+                    "type": "string"
+                },
+                "FullName": {
+                    "type": "string"
+                },
+                "IdentificationNumber": {
+                    "type": "string"
+                },
+                "IdentificationType": {
+                    "$ref": "#/definitions/models.Identification_types"
+                },
+                "ImagePath": {
+                    "type": "string"
+                },
+                "LastTxnDate": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "Location": {
+                    "type": "string"
+                },
+                "ModifiedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "Nickname": {
+                    "type": "string"
+                },
+                "PhoneNumber": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Identification_types": {
+            "title": "Identification_types",
+            "type": "object",
+            "properties": {
+                "Active": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "Code": {
+                    "type": "string"
+                },
+                "CreatedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "DateCreated": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "DateModified": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "IdentificationTypeId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "ModifiedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "Name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Object": {
+            "title": "Object",
+            "type": "object",
+            "properties": {
+                "ObjectId": {
+                    "type": "string"
+                },
+                "PlayerName": {
+                    "type": "string"
+                },
+                "Score": {
+                    "type": "integer",
+                    "format": "int64"
+                }
+            }
+        },
+        "models.Profile": {
+            "title": "Profile",
+            "type": "object",
+            "properties": {
+                "Address": {
+                    "type": "string"
+                },
+                "Age": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "Email": {
+                    "type": "string"
+                },
+                "Gender": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Request": {
+            "title": "Request",
+            "type": "object",
+            "properties": {
+                "CallbackResponse": {
+                    "type": "string"
+                },
+                "CustId": {
+                    "$ref": "#/definitions/models.Customers"
+                },
+                "DateCreated": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "DateModified": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "Request": {
+                    "type": "string"
+                },
+                "RequestAmount": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "RequestDate": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "RequestId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "RequestResponse": {
+                    "type": "string"
+                },
+                "RequestStatus": {
+                    "type": "string"
+                },
+                "RequestType": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Services": {
+            "title": "Services",
+            "type": "object",
+            "properties": {
+                "Active": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "CreatedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "DateCreated": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "DateModified": {
+                    "type": "string",
+                    "format": "datetime"
+                },
+                "ModifiedBy": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "ServiceCode": {
+                    "type": "string"
+                },
+                "ServiceDescription": {
+                    "type": "string"
+                },
+                "ServiceId": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "ServiceName": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Transactions": {
+            "title": "Transactions",
+            "type": "object"
+        },
+        "models.User": {
+            "title": "User",
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": "string"
+                },
+                "Password": {
+                    "type": "string"
+                },
+                "Profile": {
+                    "$ref": "#/definitions/models.Profile"
+                },
+                "Username": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.AirtimeRequest": {
+            "title": "AirtimeRequest",
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "network": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.CallbackData": {
+            "title": "CallbackData",
+            "type": "object",
+            "properties": {
+                "Amount": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "AmountDebited": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "Charges": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "ClientReference": {
+                    "type": "string"
+                },
+                "Description": {
+                    "type": "string"
+                },
+                "ExternalTransactionId": {
+                    "type": "string"
+                },
+                "Meta": {
+                    "$ref": "#/definitions/requests.CallbackMeta"
+                },
+                "RecipientName": {
+                    "type": "string"
+                },
+                "TransactionId": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.CallbackMeta": {
+            "title": "CallbackMeta",
+            "type": "object",
+            "properties": {
+                "Commission": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.CallbackRequest": {
+            "title": "CallbackRequest",
+            "type": "object",
+            "properties": {
+                "Data": {
+                    "$ref": "#/definitions/requests.CallbackData"
+                },
+                "ResponseCode": {
+                    "type": "string"
+                }
+            }
+        },
+        "requests.DataBundleRequest": {
+            "title": "DataBundleRequest",
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "bundle_id": {
+                    "type": "string"
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "network": {
+                    "type": "string"
+                }
+            }
+        },
+        "responses.CallbackResponse": {
+            "title": "CallbackResponse",
+            "type": "object",
+            "properties": {
+                "Result": {
+                    "type": "string"
+                },
+                "StatusCode": {
+                    "type": "boolean"
+                },
+                "StatusMessage": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "requests",
+            "description": "RequestController operations for Request\n"
+        },
+        {
+            "name": "callback",
+            "description": "CallbackController operations for Callback\n"
+        }
+    ]
+}
