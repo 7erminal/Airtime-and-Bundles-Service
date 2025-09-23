@@ -90,7 +90,7 @@ func init() {
 
     beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"] = append(beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"],
         beego.ControllerComments{
-            Method: "GetAll",
+            Method: "BilTransactions",
             Router: `/bil-transactions/`,
             AllowHTTPMethods: []string{"get"},
             MethodParams: param.Make(),
