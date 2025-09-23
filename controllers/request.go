@@ -26,7 +26,7 @@ func (c *RequestController) URLMapping() {
 	c.Mapping("BuyAirtime", c.BuyAirtime)
 	c.Mapping("BuyDataBundle", c.BuyDataBundle)
 	c.Mapping("GetBundles", c.GetBundles)
-	c.Mapping("GetAll", c.GetAll)
+	c.Mapping("BilTransactions", c.BilTransactions)
 	c.Mapping("Put", c.Put)
 	c.Mapping("Delete", c.Delete)
 }
@@ -936,8 +936,8 @@ func (c *RequestController) GetOne() {
 	c.ServeJSON()
 }
 
-// GetAll ...
-// @Title Get All
+// BilTransactions ...
+// @Title Airtime and Data Bundle Transactions
 // @Description get Request
 // @Param	query	query	string	false	"Filter. e.g. col1:v1,col2:v2 ..."
 // @Param	fields	query	string	false	"Fields returned. e.g. col1,col2 ..."
@@ -947,13 +947,13 @@ func (c *RequestController) GetOne() {
 // @Param	offset	query	string	false	"Start position of result set. Must be an integer"
 // @Success 200 {object} models.Request
 // @Failure 403
-// @router / [get]
-func (c *RequestController) GetAll() {
+// @router /bil-transactions/ [get]
+func (c *RequestController) BilTransactions() {
 	var fields []string
 	var sortby []string
 	var order []string
 	var query = make(map[string]string)
-	var limit int64 = 10
+	var limit int64 = 12
 	var offset int64
 
 	// fields: col1,col2,entity.col3
@@ -990,12 +990,64 @@ func (c *RequestController) GetAll() {
 		}
 	}
 
-	l, err := models.GetAllRequest(query, fields, sortby, order, offset, limit)
+	statusCode := "500"
+	statusMessage := "No records found"
+
+	bilTransactions := []*responses.BilTransactionsData{}
+
+	l, err := models.GetAllBil_ins_transactions(query, fields, sortby, order, offset, limit)
 	if err != nil {
 		c.Data["json"] = err.Error()
+
+		statusCode = "500"
+		statusMessage = "An error occurred" + err.Error()
 	} else {
-		c.Data["json"] = l
+		if len(l) > 0 {
+			for _, record := range l {
+				logs.Info("Record: ", record)
+				bilTxn, ok := record.(models.Bil_ins_transactions)
+				if ok {
+					logs.Info("Bil_ins_transaction: %+v", bilTxn)
+					bilTransaction := responses.BilTransactionsData{
+						TransactionId:        bilTxn.BilInsTransactionId,
+						TransactionRefNumber: bilTxn.BilTransactionId.TransactionRefNumber,
+						Service:              bilTxn.BilTransactionId.Service.ServiceName,
+						TransactionBy:        bilTxn.BilTransactionId.TransactionBy.FullName,
+						Amount:               bilTxn.BilTransactionId.Amount,
+						TransactingCurrency:  bilTxn.BilTransactionId.TransactingCurrency,
+						SourceChannel:        bilTxn.BilTransactionId.SourceChannel,
+						Source:               bilTxn.SenderAccountNumber,
+						Destination:          bilTxn.RecipientAccountNumber,
+						Charge:               bilTxn.BilTransactionId.Charge,
+						Status:               bilTxn.BilTransactionId.Status.StatusDescription,
+						DateCreated:          bilTxn.DateCreated.Format(time.RFC3339),
+						DateModified:         bilTxn.DateModified.Format(time.RFC3339),
+						CreatedBy:            bilTxn.CreatedBy,
+						ModifiedBy:           bilTxn.ModifiedBy,
+						Active:               bilTxn.Active,
+						BillerName:           bilTxn.Biller.BillerName,
+						NetworkName:          bilTxn.Network,
+					}
+
+					bilTransactions = append(bilTransactions, &bilTransaction)
+
+				}
+			}
+
+			statusCode = "200"
+			statusMessage = "Records found"
+		} else {
+			statusCode = "204"
+			statusMessage = "No records found"
+		}
 	}
+
+	response := responses.BilTransactionsListResponse{
+		StatusCode:    statusCode,
+		StatusMessage: statusMessage,
+		Result:        bilTransactions,
+	}
+	c.Data["json"] = response
 	c.ServeJSON()
 }
 

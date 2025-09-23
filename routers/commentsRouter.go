@@ -63,15 +63,6 @@ func init() {
 
     beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"] = append(beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"],
         beego.ControllerComments{
-            Method: "GetAll",
-            Router: `/`,
-            AllowHTTPMethods: []string{"get"},
-            MethodParams: param.Make(),
-            Filters: nil,
-            Params: nil})
-
-    beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"] = append(beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"],
-        beego.ControllerComments{
             Method: "GetOne",
             Router: `/:id`,
             AllowHTTPMethods: []string{"get"},
@@ -93,6 +84,15 @@ func init() {
             Method: "Delete",
             Router: `/:id`,
             AllowHTTPMethods: []string{"delete"},
+            MethodParams: param.Make(),
+            Filters: nil,
+            Params: nil})
+
+    beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"] = append(beego.GlobalControllerRouter["airtime_payment_service/controllers:RequestController"],
+        beego.ControllerComments{
+            Method: "GetAll",
+            Router: `/bil-transactions/`,
+            AllowHTTPMethods: []string{"get"},
             MethodParams: param.Make(),
             Filters: nil,
             Params: nil})
