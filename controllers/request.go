@@ -990,6 +990,8 @@ func (c *RequestController) BilTransactions() {
 		}
 	}
 
+	query["BilTransactionId__Service__ServiceCode__in"] = "AIRTIME,DATA_BUNDLE"
+
 	statusCode := "500"
 	statusMessage := "No records found"
 
