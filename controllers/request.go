@@ -373,6 +373,8 @@ func (c *RequestController) BuyDataBundle() {
 		return
 	}
 
+	logs.Info("Request text is ", string(reqText))
+
 	status, err := models.GetStatus_codesByCode(statusCode)
 	if err == nil {
 		// Get customer by ID
