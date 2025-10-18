@@ -1,6 +1,13 @@
 package helpers
 
-import "airtime_payment_service/models"
+import (
+	"airtime_payment_service/models"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/beego/beego/v2/core/logs"
+)
 
 func GetNetworkCode(networkName string, serviceType string) (resp string) {
 	networkCode := networkName + "_" + serviceType
@@ -15,4 +22,25 @@ func GetServiceId(network string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func Logger(logLevel string, requestId string, message string) {
+	//do nothing for now
+	// try to extract requestID from message if present as "requestID=" or "requestID:"
+
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	out := fmt.Sprintf("%s :: %s - %s ~ %s", timestamp, strings.ToUpper(logLevel), requestId, message)
+
+	switch strings.ToLower(logLevel) {
+	case "debug":
+		logs.Debug(out)
+	case "info":
+		logs.Info(out)
+	case "warn", "warning":
+		logs.Warn(out)
+	case "error":
+		logs.Error(out)
+	default:
+		logs.Info(out)
+	}
 }

@@ -47,6 +47,9 @@ func (c *RequestController) BuyAirtime() {
 	phoneNumber := c.Ctx.Input.Header("PhoneNumber")
 	sourceSystem := c.Ctx.Input.Header("SourceSystem")
 
+	logMessage := "BuyAirtime request received for phone number: " + phoneNumber + " with request: "
+	helpers.Logger("info", req.RequestId, logMessage)
+
 	responseCode := false
 	responseMessage := "Request not processed"
 
@@ -62,7 +65,8 @@ func (c *RequestController) BuyAirtime() {
 	status, err := models.GetStatus_codesByCode(statusCode)
 	if err == nil {
 		// Get customer by ID
-		logs.Info("About to get customer by phone number: ", phoneNumber)
+		logMessage = "About to get customer by phone number: " + phoneNumber
+		helpers.Logger("info", req.RequestId, logMessage)
 		if cust, err := models.GetCustomerByPhoneNumber(phoneNumber); err == nil {
 			// Restructure the request to match the model
 			serviceCode := "AIRTIME"
@@ -130,6 +134,8 @@ func (c *RequestController) BuyAirtime() {
 							reqText, err := json.Marshal(tReq)
 							if err != nil {
 								logs.Error("Failed to marshal request text: %v", err)
+								logMessage = "Failed to marshal request text: " + err.Error()
+								helpers.Logger("error", req.RequestId, logMessage)
 								// c.Data["json"] = "Invalid request format"
 								// c.ServeJSON()
 								// return
@@ -152,6 +158,8 @@ func (c *RequestController) BuyAirtime() {
 
 							if _, err := models.AddBil_ins_transactions(&insTransaction); err != nil {
 								logs.Error("Failed to create INS transaction record: %v", err)
+								logMessage = "Failed to create INS transaction record: " + err.Error()
+								helpers.Logger("error", req.RequestId, logMessage)
 								responseCode = false
 								responseMessage = "Failed to create INS transaction record"
 								// resp := responses.ThirdPartyBillPaymentApiResponse{
@@ -166,6 +174,8 @@ func (c *RequestController) BuyAirtime() {
 
 							// Call the third-party service to process the request
 							logs.Info("Processing airtime request with third-party service: ", tReq)
+							logMessage = "Processing airtime request with third-party service: " + string(reqText)
+							helpers.Logger("info", req.RequestId, logMessage)
 							if thirdPartyResponse, err := thirdparty.ProcessAirtime(&c.Controller, tReq); err == nil {
 
 								if thirdPartyResponse.ResponseCode == "0001" {
@@ -177,14 +187,18 @@ func (c *RequestController) BuyAirtime() {
 										transaction.Status = status
 										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
 											logs.Error("Failed to update transaction status: %v", err)
+											helpers.Logger("error", req.RequestId, "Failed to update transaction status: "+err.Error())
 											responseCode = false
 											responseMessage = "PENDING:: Failed to update transaction status"
 										} else {
+											// Prepare the response
+											helpers.Logger("info", req.RequestId, "Transaction is pending")
 											responseCode = true
 											responseMessage = "Request is being processed"
 										}
 									} else {
 										logs.Error("Failed to get status for pending transaction: %v", err)
+										helpers.Logger("info", req.RequestId, "Failed to get status for pending transaction: "+err.Error())
 										responseCode = false
 										responseMessage = "PENDING: Failed to get status for pending transaction"
 									}
@@ -197,16 +211,19 @@ func (c *RequestController) BuyAirtime() {
 										transaction.Status = status
 										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
 											logs.Error("Failed to update transaction status: %v", err)
+											helpers.Logger("error", req.RequestId, "Failed to update transaction status: "+err.Error())
 											responseCode = false
 											responseMessage = "SUCCESS:: Failed to update transaction status"
 										} else {
 											// Prepare the response
-											logs.Info("Transaction successful: ", transaction)
+											// logs.Info("Transaction successful: ", transaction)
+											helpers.Logger("info", req.RequestId, "Transaction successful")
 											responseCode = true
 											responseMessage = "Transaction successful"
 										}
 									} else {
 										logs.Error("Failed to get status for successful transaction: %v", err)
+										helpers.Logger("error", req.RequestId, "Failed to get status for successful transaction: "+err.Error())
 										responseCode = false
 										responseMessage = "SUCCESS:: Failed to get status for successful transaction"
 									}
@@ -219,11 +236,13 @@ func (c *RequestController) BuyAirtime() {
 										transaction.Status = status
 										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
 											logs.Error("Failed to update transaction status: %v", err)
+											helpers.Logger("error", req.RequestId, "Failed to update transaction status: "+err.Error())
 											responseCode = false
 											responseMessage = "FAILED:: Failed to update transaction status"
 										}
 									} else {
 										logs.Error("Failed to get status for failed transaction: %v", err)
+										helpers.Logger("error", req.RequestId, "Failed to get status for failed transaction: "+err.Error())
 										responseCode = false
 										responseMessage = "FAILED:: Failed to get status for failed transaction"
 									}
@@ -232,6 +251,8 @@ func (c *RequestController) BuyAirtime() {
 								resText, err := json.Marshal(thirdPartyResponse)
 								if err != nil {
 									logs.Error("Failed to marshal response text: %v", err)
+									logMessage = "Failed to marshal response text: " + err.Error()
+									helpers.Logger("error", req.RequestId, logMessage)
 									// c.Data["json"] = "Invalid request format"
 									// c.ServeJSON()
 									// return
@@ -240,10 +261,14 @@ func (c *RequestController) BuyAirtime() {
 								v.DateModified = time.Now()
 								if err := models.UpdateRequestById(&v); err != nil {
 									logs.Error("Failed to update request response: %v", err)
+									logMessage = "Failed to update request response: " + err.Error()
+									helpers.Logger("error", req.RequestId, logMessage)
 									responseCode = true
 									responseMessage = "Success response:: Failed to update request response"
 								} else {
-									logs.Info("Request response updated successfully")
+									// logs.Info("Request response updated successfully")
+									logMessage = "Request response updated successfully"
+									helpers.Logger("info", req.RequestId, logMessage)
 								}
 								c.Ctx.Output.SetStatus(200)
 								// Prepare the response
@@ -265,6 +290,8 @@ func (c *RequestController) BuyAirtime() {
 								c.Data["json"] = response
 							} else {
 								logs.Error("Failed to process third-party request: %v", err)
+								logMessage = "Failed to process third-party request: " + err.Error()
+								helpers.Logger("error", req.RequestId, logMessage)
 								responseCode = false
 								responseMessage = "Failed to process third-party request"
 								resp := responses.AirtimeResponse{
@@ -276,6 +303,8 @@ func (c *RequestController) BuyAirtime() {
 							}
 						} else {
 							logs.Error("Failed to get biller: %v", err)
+							logMessage = "Failed to get biller: " + err.Error()
+							helpers.Logger("error", req.RequestId, logMessage)
 							responseCode = false
 							responseMessage = "Failed to get biller"
 							resp := responses.AirtimeResponse{
@@ -287,6 +316,8 @@ func (c *RequestController) BuyAirtime() {
 						}
 					} else {
 						logs.Error("Failed to create transaction record: %v", err)
+						logMessage = "Failed to create transaction record: " + err.Error()
+						helpers.Logger("error", req.RequestId, logMessage)
 						responseCode = false
 						responseMessage = "Failed to create transaction record"
 						resp := responses.AirtimeResponse{
@@ -298,6 +329,8 @@ func (c *RequestController) BuyAirtime() {
 					}
 				} else {
 					logs.Error("Failed to create request record: %v", err)
+					logMessage = "Failed to create request record: " + err.Error()
+					helpers.Logger("error", req.RequestId, logMessage)
 					responseCode = false
 					responseMessage = "Failed to create transaction record"
 					resp := responses.AirtimeResponse{
@@ -309,6 +342,8 @@ func (c *RequestController) BuyAirtime() {
 				}
 			} else {
 				logs.Error("Service not found: %v", err)
+				logMessage = "Service not found: " + err.Error()
+				helpers.Logger("error", req.RequestId, logMessage)
 				responseCode = false
 				responseMessage = "Failed to create transaction record"
 				resp := responses.AirtimeResponse{
@@ -320,6 +355,8 @@ func (c *RequestController) BuyAirtime() {
 			}
 		} else {
 			logs.Error("Customer not found: %v", err)
+			logMessage = "Customer not found: " + err.Error()
+			helpers.Logger("error", req.RequestId, logMessage)
 			responseCode = false
 			responseMessage = "Failed to create transaction record"
 			resp := responses.AirtimeResponse{
