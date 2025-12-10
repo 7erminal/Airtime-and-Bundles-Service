@@ -10,10 +10,12 @@ type ThirdPartyGetDataBundlesRequest struct {
 }
 
 type DataBundleRequest struct {
-	Amount      float64 `json:"amount" valid:"required~Amount is required"`
-	Network     string  `json:"network" valid:"required~Network is required"`
-	Destination string  `json:"destination" valid:"required~Destination is required"`
-	BundleId    string  `json:"bundle_id" valid:"required~Bundle ID is required"`
+	Amount        float64 `json:"amount" valid:"required~Amount is required"`
+	Network       string  `json:"network" valid:"required~Network is required"`
+	Destination   string  `json:"destination" valid:"required~Destination is required"`
+	BundleId      string  `json:"bundle_id" valid:"required~Bundle ID is required"`
+	TransactionId string  `json:"transaction_id" valid:"required~Transaction ID is required"`
+	ServiceCode   string  `json:"service_code" valid:"required~Service code is required"`
 }
 
 type BundleKeyRequest struct {

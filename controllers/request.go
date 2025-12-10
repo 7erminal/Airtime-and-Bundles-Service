@@ -45,338 +45,248 @@ func (c *RequestController) BuyAirtime() {
 	json.Unmarshal(c.Ctx.Input.RequestBody, &req)
 	// Validate the request
 	phoneNumber := c.Ctx.Input.Header("PhoneNumber")
-	sourceSystem := c.Ctx.Input.Header("SourceSystem")
+	// sourceSystem := c.Ctx.Input.Header("SourceSystem")
 
 	logMessage := "BuyAirtime request received for phone number: " + phoneNumber + " with request: "
-	helpers.Logger("info", req.RequestId, logMessage)
+	helpers.Logger("info", req.TransactionId, logMessage)
 
 	responseCode := false
 	responseMessage := "Request not processed"
 
-	statusCode := "PENDING" // Assuming 5002 is the status code for "Request Pending"
-
-	reqText, err := json.Marshal(req)
-	if err != nil {
-		c.Data["json"] = "Invalid request format"
-		c.ServeJSON()
-		return
+	// Create the response object
+	airtimeResponse := responses.AirtimeResponseResult{
+		PhoneNumber:       phoneNumber,
+		Amount:            req.Amount,
+		Network:           req.Network,
+		Destination:       req.Destination,
+		TransactionStatus: "PENDING",
+		TransactionDate:   time.Now().Format(time.RFC3339),
 	}
 
-	status, err := models.GetStatus_codesByCode(statusCode)
-	if err == nil {
-		// Get customer by ID
-		logMessage = "About to get customer by phone number: " + phoneNumber
-		helpers.Logger("info", req.RequestId, logMessage)
-		if cust, err := models.GetCustomerByPhoneNumber(phoneNumber); err == nil {
-			// Restructure the request to match the model
-			serviceCode := "AIRTIME"
-			if service, err := models.GetServicesByCode(serviceCode); err == nil {
-				v := models.Request{
-					CustId:          cust,
-					Request:         string(reqText),
-					RequestType:     service.ServiceName,
-					RequestStatus:   status.StatusDescription,
-					RequestAmount:   req.Amount,
-					RequestResponse: "",
-					RequestDate:     time.Now(),
-					DateCreated:     time.Now(),
-					DateModified:    time.Now(),
-				}
-				if _, err := models.AddRequest(&v); err == nil {
-					// Create a transaction record
-					currentTime := time.Now().Unix()
-					transaction := models.Bil_transactions{
-						TransactionRefNumber: "TRX-" + strconv.FormatInt(currentTime, 10) + strconv.FormatInt(v.RequestId, 10),
-						Service:              service, // Assuming service ID is 1 for airtime
-						Request:              &v,
-						TransactionBy:        cust,
-						Amount:               req.Amount,
-						TransactingCurrency:  "GHC", // Assuming USD for simplicity
-						SourceChannel:        sourceSystem,
-						Source:               phoneNumber,
-						Destination:          req.Destination,
-						Charge:               0.0,    // Assuming no charge for simplicity
-						Status:               status, // Assuming 1 means successful
-						DateCreated:          time.Now(),
-						DateModified:         time.Now(),
-						CreatedBy:            1,
-						ModifiedBy:           1,
-						Active:               1, // Assuming active status
-					}
-					if _, err := models.AddBil_transactions(&transaction); err == nil {
-						// Go to fulfillment
-						callbackurl := ""
-						if cbr, err := models.GetApplication_propertyByCode("AIRTIME_CALLBACK_URL"); err == nil {
-							logs.Info("Property data is ", cbr)
-							logs.Info("Callback url is ", cbr.PropertyValue)
-							callbackurl = cbr.PropertyValue
-						} else {
-							logs.Error("Failed to get callback URL: %v", err)
-						}
+	txnIdIn, err := strconv.ParseInt(req.TransactionId, 10, 64)
+	if err != nil {
+		logs.Error("Invalid transaction ID: %v", err)
+	}
 
-						networkCode := helpers.GetNetworkCode(req.Network, service.ServiceCode)
+	if transaction, err := models.GetBil_transactionsById(txnIdIn); err == nil {
+		// Go to fulfillment
+		callbackurl := ""
+		if cbr, err := models.GetApplication_propertyByCode("AIRTIME_CALLBACK_URL"); err == nil {
+			logs.Info("Property data is ", cbr)
+			logs.Info("Callback url is ", cbr.PropertyValue)
+			callbackurl = cbr.PropertyValue
+		} else {
+			logs.Error("Failed to get callback URL: %v", err)
+		}
 
-						billerCode := "AIRTIME"
-						biller, err := models.GetBillerByCode(billerCode)
+		networkCode := helpers.GetNetworkCode(req.Network, req.ServiceCode)
 
-						if err == nil {
-							// Formulate the request to send to the third-party service
-							tReq := requests.AirtimeThirdPartyRequest{
-								PhoneNumber:   phoneNumber,
-								Amount:        req.Amount,
-								Destination:   req.Destination,
-								Network:       networkCode,                      // Assuming service name is used as network
-								TransactionId: transaction.TransactionRefNumber, // Use the request ID as the transaction ID
-								CallbackUrl:   callbackurl,                      // Optional field for callback URL
-							}
+		billerCode := "AIRTIME"
+		biller, err := models.GetBillerByCode(billerCode)
 
-							// Insert in INS Transactions table
-							reqText, err := json.Marshal(tReq)
-							if err != nil {
-								logs.Error("Failed to marshal request text: %v", err)
-								logMessage = "Failed to marshal request text: " + err.Error()
-								helpers.Logger("error", req.RequestId, logMessage)
-								// c.Data["json"] = "Invalid request format"
-								// c.ServeJSON()
-								// return
-							}
+		if err == nil {
+			// Formulate the request to send to the third-party service
+			tReq := requests.AirtimeThirdPartyRequest{
+				PhoneNumber:   phoneNumber,
+				Amount:        req.Amount,
+				Destination:   req.Destination,
+				Network:       networkCode,                      // Assuming service name is used as network
+				TransactionId: transaction.TransactionRefNumber, // Use the request ID as the transaction ID
+				CallbackUrl:   callbackurl,                      // Optional field for callback URL
+			}
 
-							insTransaction := models.Bil_ins_transactions{
-								BilTransactionId:       &transaction,
-								Amount:                 req.Amount,
-								Biller:                 biller,
-								SenderAccountNumber:    phoneNumber,
-								RecipientAccountNumber: req.Destination,
-								Network:                billerCode,
-								Request:                string(reqText),
-								DateCreated:            time.Now(),
-								DateModified:           time.Now(),
-								CreatedBy:              1,
-								ModifiedBy:             1,
-								Active:                 1,
-							}
+			// Insert in INS Transactions table
+			reqText, err := json.Marshal(tReq)
+			if err != nil {
+				logs.Error("Failed to marshal request text: %v", err)
+				logMessage = "Failed to marshal request text: " + err.Error()
+				helpers.Logger("error", req.TransactionId, logMessage)
+				// c.Data["json"] = "Invalid request format"
+				// c.ServeJSON()
+				// return
+			}
 
-							if _, err := models.AddBil_ins_transactions(&insTransaction); err != nil {
-								logs.Error("Failed to create INS transaction record: %v", err)
-								logMessage = "Failed to create INS transaction record: " + err.Error()
-								helpers.Logger("error", req.RequestId, logMessage)
-								responseCode = false
-								responseMessage = "Failed to create INS transaction record"
-								// resp := responses.ThirdPartyBillPaymentApiResponse{
-								// 	StatusCode:    responseCode,
-								// 	StatusMessage: responseMessage,
-								// 	Result:        nil,
-								// }
-								// c.Data["json"] = resp
-								// c.ServeJSON()
-								// return
-							}
+			insTransaction := models.Bil_ins_transactions{
+				BilTransactionId:       transaction,
+				Amount:                 req.Amount,
+				Biller:                 biller,
+				SenderAccountNumber:    phoneNumber,
+				RecipientAccountNumber: req.Destination,
+				Network:                billerCode,
+				Request:                string(reqText),
+				DateCreated:            time.Now(),
+				DateModified:           time.Now(),
+				CreatedBy:              1,
+				ModifiedBy:             1,
+				Active:                 1,
+			}
 
-							// Call the third-party service to process the request
-							logs.Info("Processing airtime request with third-party service: ", tReq)
-							logMessage = "Processing airtime request with third-party service: " + string(reqText)
-							helpers.Logger("info", req.RequestId, logMessage)
-							if thirdPartyResponse, err := thirdparty.ProcessAirtime(&c.Controller, tReq); err == nil {
+			if _, err := models.AddBil_ins_transactions(&insTransaction); err != nil {
+				logs.Error("Failed to create INS transaction record: %v", err)
+				logMessage = "Failed to create INS transaction record: " + err.Error()
+				helpers.Logger("error", req.TransactionId, logMessage)
+				responseCode = false
+				responseMessage = "Failed to create INS transaction record"
+				// resp := responses.ThirdPartyBillPaymentApiResponse{
+				// 	StatusCode:    responseCode,
+				// 	StatusMessage: responseMessage,
+				// 	Result:        nil,
+				// }
+				// c.Data["json"] = resp
+				// c.ServeJSON()
+				// return
+			}
 
-								if thirdPartyResponse.ResponseCode == "0001" {
-									// Transaction is pending
-									// Update the transaction status to pending
-									responseCode = true
-									responseMessage = "Request is being processed"
-									if status, err := models.GetStatus_codesByCode("PENDING"); err == nil {
-										transaction.Status = status
-										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
-											logs.Error("Failed to update transaction status: %v", err)
-											helpers.Logger("error", req.RequestId, "Failed to update transaction status: "+err.Error())
-											responseCode = false
-											responseMessage = "PENDING:: Failed to update transaction status"
-										} else {
-											// Prepare the response
-											helpers.Logger("info", req.RequestId, "Transaction is pending")
-											responseCode = true
-											responseMessage = "Request is being processed"
-										}
-									} else {
-										logs.Error("Failed to get status for pending transaction: %v", err)
-										helpers.Logger("info", req.RequestId, "Failed to get status for pending transaction: "+err.Error())
-										responseCode = false
-										responseMessage = "PENDING: Failed to get status for pending transaction"
-									}
-								} else if thirdPartyResponse.ResponseCode == "0000" {
-									// Transaction is successful
-									// Update the transaction status to successful
-									responseCode = true
-									responseMessage = "Request is successful"
-									if status, err := models.GetStatus_codesByCode("SUCCESS"); err == nil {
-										transaction.Status = status
-										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
-											logs.Error("Failed to update transaction status: %v", err)
-											helpers.Logger("error", req.RequestId, "Failed to update transaction status: "+err.Error())
-											responseCode = false
-											responseMessage = "SUCCESS:: Failed to update transaction status"
-										} else {
-											// Prepare the response
-											// logs.Info("Transaction successful: ", transaction)
-											helpers.Logger("info", req.RequestId, "Transaction successful")
-											responseCode = true
-											responseMessage = "Transaction successful"
-										}
-									} else {
-										logs.Error("Failed to get status for successful transaction: %v", err)
-										helpers.Logger("error", req.RequestId, "Failed to get status for successful transaction: "+err.Error())
-										responseCode = false
-										responseMessage = "SUCCESS:: Failed to get status for successful transaction"
-									}
-								} else {
-									// Transaction failed
-									// Update the transaction status to failed
-									responseCode = false
-									responseMessage = "Transaction failed"
-									if status, err := models.GetStatus_codesByCode("FAILED"); err == nil {
-										transaction.Status = status
-										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
-											logs.Error("Failed to update transaction status: %v", err)
-											helpers.Logger("error", req.RequestId, "Failed to update transaction status: "+err.Error())
-											responseCode = false
-											responseMessage = "FAILED:: Failed to update transaction status"
-										}
-									} else {
-										logs.Error("Failed to get status for failed transaction: %v", err)
-										helpers.Logger("error", req.RequestId, "Failed to get status for failed transaction: "+err.Error())
-										responseCode = false
-										responseMessage = "FAILED:: Failed to get status for failed transaction"
-									}
-								}
-								// Update requests response
-								resText, err := json.Marshal(thirdPartyResponse)
-								if err != nil {
-									logs.Error("Failed to marshal response text: %v", err)
-									logMessage = "Failed to marshal response text: " + err.Error()
-									helpers.Logger("error", req.RequestId, logMessage)
-									// c.Data["json"] = "Invalid request format"
-									// c.ServeJSON()
-									// return
-								}
-								v.RequestResponse = string(resText)
-								v.DateModified = time.Now()
-								if err := models.UpdateRequestById(&v); err != nil {
-									logs.Error("Failed to update request response: %v", err)
-									logMessage = "Failed to update request response: " + err.Error()
-									helpers.Logger("error", req.RequestId, logMessage)
-									responseCode = true
-									responseMessage = "Success response:: Failed to update request response"
-								} else {
-									// logs.Info("Request response updated successfully")
-									logMessage = "Request response updated successfully"
-									helpers.Logger("info", req.RequestId, logMessage)
-								}
-								c.Ctx.Output.SetStatus(200)
-								// Prepare the response
+			// Call the third-party service to process the request
+			logs.Info("Processing airtime request with third-party service: ", tReq)
+			logMessage = "Processing airtime request with third-party service: " + string(reqText)
+			helpers.Logger("info", req.TransactionId, logMessage)
+			if thirdPartyResponse, err := thirdparty.ProcessAirtime(&c.Controller, tReq); err == nil {
 
-								// Create the response object
-								airtimeResponse := responses.AirtimeResponseResult{
-									PhoneNumber:       cust.PhoneNumber,
-									Amount:            req.Amount,
-									Network:           req.Network,
-									Destination:       req.Destination,
-									TransactionStatus: status.StatusDescription,
-									TransactionDate:   v.RequestDate.Format(time.RFC3339),
-								}
-								response := responses.AirtimeResponse{
-									StatusCode:    responseCode,
-									StatusMessage: responseMessage,
-									Result:        &airtimeResponse,
-								}
-								c.Data["json"] = response
-							} else {
-								logs.Error("Failed to process third-party request: %v", err)
-								logMessage = "Failed to process third-party request: " + err.Error()
-								helpers.Logger("error", req.RequestId, logMessage)
-								responseCode = false
-								responseMessage = "Failed to process third-party request"
-								resp := responses.AirtimeResponse{
-									StatusCode:    responseCode,
-									StatusMessage: responseMessage,
-									Result:        nil,
-								}
-								c.Data["json"] = resp
-							}
-						} else {
-							logs.Error("Failed to get biller: %v", err)
-							logMessage = "Failed to get biller: " + err.Error()
-							helpers.Logger("error", req.RequestId, logMessage)
+				if thirdPartyResponse.ResponseCode == "0001" {
+					// Transaction is pending
+					// Update the transaction status to pending
+					responseCode = true
+					responseMessage = "Request is being processed"
+					if status, err := models.GetStatus_codesByCode("PENDING"); err == nil {
+						transaction.Status = status
+						if err := models.UpdateBil_transactionsById(transaction); err != nil {
+							logs.Error("Failed to update transaction status: %v", err)
+							helpers.Logger("error", req.TransactionId, "Failed to update transaction status: "+err.Error())
 							responseCode = false
-							responseMessage = "Failed to get biller"
-							resp := responses.AirtimeResponse{
-								StatusCode:    responseCode,
-								StatusMessage: responseMessage,
-								Result:        nil,
-							}
-							c.Data["json"] = resp
+							responseMessage = "PENDING:: Failed to update transaction status"
+						} else {
+							// Prepare the response
+							helpers.Logger("info", req.TransactionId, "Transaction is pending")
+							responseCode = true
+							responseMessage = "Request is being processed"
 						}
 					} else {
-						logs.Error("Failed to create transaction record: %v", err)
-						logMessage = "Failed to create transaction record: " + err.Error()
-						helpers.Logger("error", req.RequestId, logMessage)
+						logs.Error("Failed to get status for pending transaction: %v", err)
+						helpers.Logger("info", req.TransactionId, "Failed to get status for pending transaction: "+err.Error())
 						responseCode = false
-						responseMessage = "Failed to create transaction record"
-						resp := responses.AirtimeResponse{
-							StatusCode:    responseCode,
-							StatusMessage: responseMessage,
-							Result:        nil,
+						responseMessage = "PENDING: Failed to get status for pending transaction"
+					}
+				} else if thirdPartyResponse.ResponseCode == "0000" {
+					// Transaction is successful
+					// Update the transaction status to successful
+					responseCode = true
+					responseMessage = "Request is successful"
+					if status, err := models.GetStatus_codesByCode("SUCCESS"); err == nil {
+						transaction.Status = status
+						if err := models.UpdateBil_transactionsById(transaction); err != nil {
+							logs.Error("Failed to update transaction status: %v", err)
+							helpers.Logger("error", req.TransactionId, "Failed to update transaction status: "+err.Error())
+							responseCode = false
+							responseMessage = "SUCCESS:: Failed to update transaction status"
+						} else {
+							// Prepare the response
+							// logs.Info("Transaction successful: ", transaction)
+							helpers.Logger("info", req.TransactionId, "Transaction successful")
+							responseCode = true
+							responseMessage = "Transaction successful"
 						}
-						c.Data["json"] = resp
+					} else {
+						logs.Error("Failed to get status for successful transaction: %v", err)
+						helpers.Logger("error", req.TransactionId, "Failed to get status for successful transaction: "+err.Error())
+						responseCode = false
+						responseMessage = "SUCCESS:: Failed to get status for successful transaction"
 					}
 				} else {
-					logs.Error("Failed to create request record: %v", err)
-					logMessage = "Failed to create request record: " + err.Error()
-					helpers.Logger("error", req.RequestId, logMessage)
+					// Transaction failed
+					// Update the transaction status to failed
 					responseCode = false
-					responseMessage = "Failed to create transaction record"
-					resp := responses.AirtimeResponse{
-						StatusCode:    responseCode,
-						StatusMessage: responseMessage,
-						Result:        nil,
+					responseMessage = "Transaction failed"
+					if status, err := models.GetStatus_codesByCode("FAILED"); err == nil {
+						transaction.Status = status
+						if err := models.UpdateBil_transactionsById(transaction); err != nil {
+							logs.Error("Failed to update transaction status: %v", err)
+							helpers.Logger("error", req.TransactionId, "Failed to update transaction status: "+err.Error())
+							responseCode = false
+							responseMessage = "FAILED:: Failed to update transaction status"
+						}
+					} else {
+						logs.Error("Failed to get status for failed transaction: %v", err)
+						helpers.Logger("error", req.TransactionId, "Failed to get status for failed transaction: "+err.Error())
+						responseCode = false
+						responseMessage = "FAILED:: Failed to get status for failed transaction"
 					}
-					c.Data["json"] = resp
 				}
-			} else {
-				logs.Error("Service not found: %v", err)
-				logMessage = "Service not found: " + err.Error()
-				helpers.Logger("error", req.RequestId, logMessage)
-				responseCode = false
-				responseMessage = "Failed to create transaction record"
-				resp := responses.AirtimeResponse{
+				// Update requests response
+				resText, err := json.Marshal(thirdPartyResponse)
+				if err != nil {
+					logs.Error("Failed to marshal response text: %v", err)
+					logMessage = "Failed to marshal response text: " + err.Error()
+					helpers.Logger("error", req.TransactionId, logMessage)
+					// c.Data["json"] = "Invalid request format"
+					// c.ServeJSON()
+					// return
+				}
+
+				if v, err := models.GetRequestById(transaction.Request.RequestId); err == nil {
+					v.RequestResponse = string(resText)
+					v.DateModified = time.Now()
+					if err := models.UpdateRequestById(v); err != nil {
+						logs.Error("Failed to update request response: %v", err)
+						logMessage = "Failed to update request response: " + err.Error()
+						helpers.Logger("error", strconv.FormatInt(v.RequestId, 10), logMessage)
+						responseCode = true
+						responseMessage = "Success response:: Failed to update request response"
+					} else {
+						// logs.Info("Request response updated successfully")
+						logMessage = "Request response updated successfully"
+						helpers.Logger("info", req.TransactionId, logMessage)
+					}
+				} else {
+					logs.Error("Failed to get request by ID: %v", err)
+				}
+				c.Ctx.Output.SetStatus(200)
+
+				if status, err := models.GetStatus_codesByCode("IN_PROGRESS"); err == nil {
+					airtimeResponse = responses.AirtimeResponseResult{
+						PhoneNumber:       phoneNumber,
+						Amount:            req.Amount,
+						Network:           req.Network,
+						Destination:       req.Destination,
+						TransactionStatus: status.Status,
+						TransactionDate:   time.Now().Format(time.RFC3339),
+					}
+				}
+				// Prepare the response
+				response := responses.AirtimeResponse{
 					StatusCode:    responseCode,
 					StatusMessage: responseMessage,
-					Result:        nil,
+					Result:        &airtimeResponse,
 				}
-				c.Data["json"] = resp
+				c.Data["json"] = response
+			} else {
+				logs.Error("Failed to process third-party request: %v", err)
+				logMessage = "Failed to process third-party request: " + err.Error()
+				helpers.Logger("error", req.TransactionId, logMessage)
+				responseCode = false
+				responseMessage = "Failed to process third-party request"
 			}
 		} else {
-			logs.Error("Customer not found: %v", err)
-			logMessage = "Customer not found: " + err.Error()
-			helpers.Logger("error", req.RequestId, logMessage)
+			logs.Error("Failed to get biller: %v", err)
+			logMessage = "Failed to get biller: " + err.Error()
+			helpers.Logger("error", req.TransactionId, logMessage)
 			responseCode = false
-			responseMessage = "Failed to create transaction record"
-			resp := responses.AirtimeResponse{
-				StatusCode:    responseCode,
-				StatusMessage: responseMessage,
-				Result:        nil,
-			}
-			c.Data["json"] = resp
+			responseMessage = "Failed to get biller"
 		}
 	} else {
-		logs.Error("Status not found: %v", err)
+		logs.Error("Failed to get transaction by ID: %v", err)
+		logMessage = "Failed to get transaction by ID: " + err.Error()
+		helpers.Logger("error", req.TransactionId, logMessage)
 		responseCode = false
-		responseMessage = "Failed to create transaction record"
-		resp := responses.AirtimeResponse{
-			StatusCode:    responseCode,
-			StatusMessage: responseMessage,
-			Result:        nil,
-		}
-		c.Data["json"] = resp
+		responseMessage = "Failed to get transaction by ID"
 	}
+
+	response := responses.AirtimeResponse{
+		StatusCode:    responseCode,
+		StatusMessage: responseMessage,
+		Result:        &airtimeResponse,
+	}
+	c.Data["json"] = response
 	c.ServeJSON()
 }
 
@@ -396,289 +306,219 @@ func (c *RequestController) BuyDataBundle() {
 
 	// authorization := ctx.Input.Header("Authorization")
 	phoneNumber := c.Ctx.Input.Header("PhoneNumber")
-	sourceSystem := c.Ctx.Input.Header("SourceSystem")
+	// sourceSystem := c.Ctx.Input.Header("SourceSystem")
 
 	responseCode := false
 	responseMessage := "Request not processed"
-
-	statusCode := "PENDING" // Assuming 5002 is the status code for "Request Pending"
-
-	reqText, err := json.Marshal(req)
-	if err != nil {
-		c.Data["json"] = "Invalid request format"
-		c.ServeJSON()
-		return
+	bundleResponse := responses.DataBundleResponseResult{
+		PhoneNumber:       phoneNumber,
+		Amount:            req.Amount,
+		Network:           req.Network,
+		Destination:       req.Destination,
+		TransactionStatus: "PENDING",
+		TransactionDate:   time.Now().Format(time.RFC3339),
 	}
 
-	logs.Info("Request text is ", string(reqText))
+	txnId, err := strconv.ParseInt(req.TransactionId, 10, 64)
+	if err != nil {
+		logs.Error("Invalid transaction ID: %v", err)
+	}
 
-	status, err := models.GetStatus_codesByCode(statusCode)
-	if err == nil {
-		// Get customer by ID
-		if cust, err := models.GetCustomerByPhoneNumber(phoneNumber); err == nil {
-			// Restructure the request to match the model
-			serviceCode := "DATA_BUNDLE"
-			if service, err := models.GetServicesByCode(serviceCode); err == nil {
-				v := models.Request{
-					CustId:          cust,
-					Request:         string(reqText),
-					RequestType:     service.ServiceName,
-					RequestStatus:   status.StatusDescription,
-					RequestAmount:   req.Amount,
-					RequestResponse: "",
-					RequestDate:     time.Now(),
-					DateCreated:     time.Now(),
-					DateModified:    time.Now(),
-				}
-				if _, err := models.AddRequest(&v); err == nil {
-					// Create a transaction record
-					transaction := models.Bil_transactions{
-						TransactionRefNumber: "TRX-" + strconv.FormatInt(time.Now().Unix(), 10) + strconv.FormatInt(v.RequestId, 10),
-						Service:              service, // Assuming service ID is 1 for airtime
-						Request:              &v,
-						TransactionBy:        cust,
-						Amount:               req.Amount,
-						TransactingCurrency:  "GHC", // Assuming USD for simplicity
-						SourceChannel:        sourceSystem,
-						Source:               phoneNumber,
-						Destination:          req.Destination,
-						Charge:               0.0,    // Assuming no charge for simplicity
-						Status:               status, // Assuming 1 means successful
-						DateCreated:          time.Now(),
-						DateModified:         time.Now(),
-						CreatedBy:            1,
-						ModifiedBy:           1,
-						Active:               1, // Assuming active status
-					}
-					if _, err := models.AddBil_transactions(&transaction); err == nil {
-						// Go to fulfillment
-						// Formulate the request to send to the third-party service
-						selectedBundle := requests.BundleKeyRequest{
-							Bundle: req.BundleId,
-						}
+	if transaction, err := models.GetBil_transactionsById(txnId); err == nil {
+		// Go to fulfillment
+		// Formulate the request to send to the third-party service
+		selectedBundle := requests.BundleKeyRequest{
+			Bundle: req.BundleId,
+		}
 
-						callbackurl := ""
-						if cbr, err := models.GetApplication_propertyByCode("DATA_BUNDLE_CALLBACK_URL"); err == nil {
-							callbackurl = cbr.PropertyValue
-						} else {
-							logs.Error("Failed to get callback URL: %v", err)
-						}
+		callbackurl := ""
+		if cbr, err := models.GetApplication_propertyByCode("DATA_BUNDLE_CALLBACK_URL"); err == nil {
+			callbackurl = cbr.PropertyValue
+		} else {
+			logs.Error("Failed to get callback URL: %v", err)
+		}
 
-						logs.Info("About to get network code for service: ", service.ServiceCode, " and network: ", req.Network)
+		logs.Info("About to get network code for service: ", req.ServiceCode, " and network: ", req.Network)
 
-						networkCode := helpers.GetNetworkCode(req.Network, service.ServiceCode)
+		networkCode := helpers.GetNetworkCode(req.Network, req.ServiceCode)
 
-						billerCode := "DATA_BUNDLE"
-						biller, err := models.GetBillerByCode(billerCode)
+		billerCode := "DATA_BUNDLE"
+		biller, err := models.GetBillerByCode(billerCode)
 
-						if err == nil {
+		if err == nil {
 
-							tReq := requests.DataBundleThirdPartyRequest{
-								PhoneNumber:     phoneNumber,
-								Amount:          req.Amount,
-								Destination:     req.Destination,
-								Network:         networkCode,                      // Assuming service name is used as network
-								ClientReference: transaction.TransactionRefNumber, // Use the request ID as the transaction ID
-								CallbackUrl:     callbackurl,                      // Optional field for callback URL
-								ExtraData:       selectedBundle,                   // Assuming this is the bundle key request
-								BundleId:        req.BundleId,                     // Assuming this is the bundle ID
+			tReq := requests.DataBundleThirdPartyRequest{
+				PhoneNumber:     phoneNumber,
+				Amount:          req.Amount,
+				Destination:     req.Destination,
+				Network:         networkCode,                      // Assuming service name is used as network
+				ClientReference: transaction.TransactionRefNumber, // Use the request ID as the transaction ID
+				CallbackUrl:     callbackurl,                      // Optional field for callback URL
+				ExtraData:       selectedBundle,                   // Assuming this is the bundle key request
+				BundleId:        req.BundleId,                     // Assuming this is the bundle ID
 
-							}
+			}
 
-							// Insert in INS Transactions table
-							reqText, err := json.Marshal(tReq)
-							if err != nil {
-								logs.Error("Failed to marshal request text: %v", err)
-								// c.Data["json"] = "Invalid request format"
-								// c.ServeJSON()
-								// return
-							}
+			// Insert in INS Transactions table
+			reqText, err := json.Marshal(tReq)
+			if err != nil {
+				logs.Error("Failed to marshal request text: %v", err)
+				// c.Data["json"] = "Invalid request format"
+				// c.ServeJSON()
+				// return
+			}
 
-							insTransaction := models.Bil_ins_transactions{
-								BilTransactionId:       &transaction,
-								Amount:                 req.Amount,
-								Biller:                 biller,
-								SenderAccountNumber:    phoneNumber,
-								RecipientAccountNumber: req.Destination,
-								Network:                billerCode,
-								Request:                string(reqText),
-								DateCreated:            time.Now(),
-								DateModified:           time.Now(),
-								CreatedBy:              1,
-								ModifiedBy:             1,
-								Active:                 1,
-							}
+			insTransaction := models.Bil_ins_transactions{
+				BilTransactionId:       transaction,
+				Amount:                 req.Amount,
+				Biller:                 biller,
+				SenderAccountNumber:    phoneNumber,
+				RecipientAccountNumber: req.Destination,
+				Network:                billerCode,
+				Request:                string(reqText),
+				DateCreated:            time.Now(),
+				DateModified:           time.Now(),
+				CreatedBy:              1,
+				ModifiedBy:             1,
+				Active:                 1,
+			}
 
-							if _, err := models.AddBil_ins_transactions(&insTransaction); err != nil {
-								logs.Error("Failed to create INS transaction record: %v", err)
-								responseCode = false
-								responseMessage = "Failed to create INS transaction record"
-								// resp := responses.ThirdPartyBillPaymentApiResponse{
-								// 	StatusCode:    responseCode,
-								// 	StatusMessage: responseMessage,
-								// 	Result:        nil,
-								// }
-								// c.Data["json"] = resp
-								// c.ServeJSON()
-								// return
-							}
+			if _, err := models.AddBil_ins_transactions(&insTransaction); err != nil {
+				logs.Error("Failed to create INS transaction record: %v", err)
+				responseCode = false
+				responseMessage = "Failed to create INS transaction record"
+				// resp := responses.ThirdPartyBillPaymentApiResponse{
+				// 	StatusCode:    responseCode,
+				// 	StatusMessage: responseMessage,
+				// 	Result:        nil,
+				// }
+				// c.Data["json"] = resp
+				// c.ServeJSON()
+				// return
+			}
 
-							// Call the third-party service to process the request
-							logs.Info("Processing bundle request with third-party service: ", tReq)
-							if thirdPartyResponse, err := thirdparty.ProcessDataBundlePurchase(&c.Controller, tReq); err == nil {
-								logs.Info("Third-party response received: ", thirdPartyResponse)
+			// Call the third-party service to process the request
+			logs.Info("Processing bundle request with third-party service: ", tReq)
+			if thirdPartyResponse, err := thirdparty.ProcessDataBundlePurchase(&c.Controller, tReq); err == nil {
+				logs.Info("Third-party response received: ", thirdPartyResponse)
 
-								if thirdPartyResponse.ResponseCode == "0001" {
-									// Transaction is pending
-									// Update the transaction status to pending
-									logs.Info("Transaction is pending, updating status to PENDING")
-									responseCode = true
-									responseMessage = "Request is being processed"
-									if status, err := models.GetStatus_codesByCode("PENDING"); err == nil {
-										transaction.Status = status
-										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
-											logs.Error("Failed to update transaction status: %v", err)
-											responseCode = false
-											responseMessage = "PENDING:: Failed to update transaction status"
-										} else {
-											logs.Info("Transaction status updated to pending")
-											responseCode = true
-											responseMessage = "Request is being processed"
-										}
-									} else {
-										logs.Error("Failed to get status for pending transaction: %v", err)
-										responseCode = false
-										responseMessage = "PENDING: Failed to get status for pending transaction"
-									}
-								} else if thirdPartyResponse.ResponseCode == "0000" {
-									// Transaction is successful
-									// Update the transaction status to successful
-									responseCode = true
-									responseMessage = "Request is successful"
-									if status, err := models.GetStatus_codesByCode("SUCCESS"); err == nil {
-										transaction.Status = status
-										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
-											logs.Error("Failed to update transaction status: %v", err)
-											responseCode = false
-											responseMessage = "SUCCESS:: Failed to update transaction status"
-										} else {
-											// Prepare the response
-											logs.Info("Transaction successful: ", transaction)
-											responseCode = true
-											responseMessage = "Transaction successful"
-										}
-									} else {
-										logs.Error("Failed to get status for successful transaction: %v", err)
-										responseCode = false
-										responseMessage = "SUCCESS:: Failed to get status for successful transaction"
-									}
-								} else {
-									// Transaction failed
-									// Update the transaction status to failed
-									responseCode = false
-									responseMessage = "Transaction failed"
-									if status, err := models.GetStatus_codesByCode("FAILED"); err == nil {
-										transaction.Status = status
-										if err := models.UpdateBil_transactionsById(&transaction); err != nil {
-											logs.Error("Failed to update transaction status: %v", err)
-											responseCode = false
-											responseMessage = "FAILED:: Failed to update transaction status"
-										}
-									} else {
-										logs.Error("Failed to get status for failed transaction: %v", err)
-										responseCode = false
-										responseMessage = "FAILED:: Failed to get status for failed transaction"
-									}
-								}
-
-								resText, err := json.Marshal(thirdPartyResponse)
-								if err != nil {
-									logs.Error("Failed to marshal response text: %v", err)
-									// c.Data["json"] = "Invalid request format"
-									// c.ServeJSON()
-									// return
-								}
-								v.RequestResponse = string(resText)
-								v.DateModified = time.Now()
-								if err := models.UpdateRequestById(&v); err != nil {
-									logs.Error("Failed to update request response: %v", err)
-									responseCode = false
-									responseMessage = "Success response:: Failed to update request response"
-								} else {
-									logs.Info("Request response updated successfully")
-									logs.Info("Response code: ", responseCode)
-								}
-
-								c.Ctx.Output.SetStatus(200)
-								// Prepare the response
-
-								// Create the response object
-								bundleResponse := responses.DataBundleResponseResult{
-									PhoneNumber:       cust.PhoneNumber,
-									Amount:            req.Amount,
-									Network:           req.Network,
-									Destination:       req.Destination,
-									TransactionStatus: status.StatusDescription,
-									TransactionDate:   v.RequestDate.Format(time.RFC3339),
-								}
-
-								logs.Info("Bundle response created: ", bundleResponse)
-								logs.Info("Response code: ", responseCode)
-								logs.Info("Response message: ", responseMessage)
-								response := responses.DataBundleResponse{
-									StatusCode:    responseCode,
-									StatusMessage: responseMessage,
-									Result:        &bundleResponse,
-								}
-								c.Data["json"] = response
-							} else {
-								logs.Error("Failed to process third-party request: %v", err)
-								responseCode = false
-								responseMessage = "Failed to process third-party request"
-								resp := responses.DataBundleResponse{
-									StatusCode:    responseCode,
-									StatusMessage: responseMessage,
-									Result:        nil,
-								}
-								c.Data["json"] = resp
-							}
-						} else {
-							logs.Error("Failed to create transaction record: %v", err)
+				if thirdPartyResponse.ResponseCode == "0001" {
+					// Transaction is pending
+					// Update the transaction status to pending
+					logs.Info("Transaction is pending, updating status to PENDING")
+					responseCode = true
+					responseMessage = "Request is being processed"
+					if status, err := models.GetStatus_codesByCode("PENDING"); err == nil {
+						transaction.Status = status
+						if err := models.UpdateBil_transactionsById(transaction); err != nil {
+							logs.Error("Failed to update transaction status: %v", err)
 							responseCode = false
-							responseMessage = "Failed to create transaction record"
-							resp := responses.DataBundleResponse{
-								StatusCode:    responseCode,
-								StatusMessage: responseMessage,
-								Result:        nil,
-							}
-							c.Data["json"] = resp
+							responseMessage = "PENDING:: Failed to update transaction status"
+						} else {
+							logs.Info("Transaction status updated to pending")
+							responseCode = true
+							responseMessage = "Request is being processed"
 						}
 					} else {
-						logs.Error("Failed to create transaction record: %v", err)
+						logs.Error("Failed to get status for pending transaction: %v", err)
 						responseCode = false
-						responseMessage = "Failed to create transaction record"
-						resp := responses.DataBundleResponse{
-							StatusCode:    responseCode,
-							StatusMessage: responseMessage,
-							Result:        nil,
+						responseMessage = "PENDING: Failed to get status for pending transaction"
+					}
+				} else if thirdPartyResponse.ResponseCode == "0000" {
+					// Transaction is successful
+					// Update the transaction status to successful
+					responseCode = true
+					responseMessage = "Request is successful"
+					if status, err := models.GetStatus_codesByCode("SUCCESS"); err == nil {
+						transaction.Status = status
+						if err := models.UpdateBil_transactionsById(transaction); err != nil {
+							logs.Error("Failed to update transaction status: %v", err)
+							responseCode = false
+							responseMessage = "SUCCESS:: Failed to update transaction status"
+						} else {
+							// Prepare the response
+							logs.Info("Transaction successful: ", transaction)
+							responseCode = true
+							responseMessage = "Transaction successful"
 						}
-						c.Data["json"] = resp
+					} else {
+						logs.Error("Failed to get status for successful transaction: %v", err)
+						responseCode = false
+						responseMessage = "SUCCESS:: Failed to get status for successful transaction"
 					}
 				} else {
-					logs.Error("Failed to create request record: %v", err)
+					// Transaction failed
+					// Update the transaction status to failed
 					responseCode = false
-					responseMessage = "Failed to create transaction record"
-					resp := responses.DataBundleResponse{
-						StatusCode:    responseCode,
-						StatusMessage: responseMessage,
-						Result:        nil,
+					responseMessage = "Transaction failed"
+					if status, err := models.GetStatus_codesByCode("FAILED"); err == nil {
+						transaction.Status = status
+						if err := models.UpdateBil_transactionsById(transaction); err != nil {
+							logs.Error("Failed to update transaction status: %v", err)
+							responseCode = false
+							responseMessage = "FAILED:: Failed to update transaction status"
+						} else {
+							logs.Info("Transaction status updated to failed")
+							responseCode = true
+							responseMessage = "Transaction failed"
+						}
+					} else {
+						logs.Error("Failed to get status for failed transaction: %v", err)
+						responseCode = false
+						responseMessage = "FAILED:: Failed to get status for failed transaction"
 					}
-					c.Data["json"] = resp
 				}
+
+				resText, err := json.Marshal(thirdPartyResponse)
+				if err != nil {
+					logs.Error("Failed to marshal response text: %v", err)
+					// c.Data["json"] = "Invalid request format"
+					// c.ServeJSON()
+					// return
+				}
+				if v, err := models.GetRequestById(transaction.Request.RequestId); err == nil {
+					v.RequestResponse = string(resText)
+					v.DateModified = time.Now()
+					if err := models.UpdateRequestById(v); err != nil {
+						logs.Error("Failed to update request response: %v", err)
+						responseCode = false
+						responseMessage = "Success response:: Failed to update request response"
+					} else {
+						logs.Info("Request response updated successfully")
+						logs.Info("Response code: ", responseCode)
+					}
+				} else {
+					logs.Error("Failed to get request by ID: %v", err)
+				}
+
+				c.Ctx.Output.SetStatus(200)
+				// Prepare the response
+
+				if status, err := models.GetStatus_codesByCode("IN_PROGRESS"); err == nil {
+					// Create the response object
+					bundleResponse = responses.DataBundleResponseResult{
+						PhoneNumber:       phoneNumber,
+						Amount:            req.Amount,
+						Network:           req.Network,
+						Destination:       req.Destination,
+						TransactionStatus: status.StatusDescription,
+						TransactionDate:   time.Now().Format(time.RFC3339),
+					}
+				}
+
+				logs.Info("Bundle response created: ", bundleResponse)
+				logs.Info("Response code: ", responseCode)
+				logs.Info("Response message: ", responseMessage)
+				response := responses.DataBundleResponse{
+					StatusCode:    responseCode,
+					StatusMessage: responseMessage,
+					Result:        &bundleResponse,
+				}
+				c.Data["json"] = response
 			} else {
-				logs.Error("Service not found: %v", err)
+				logs.Error("Failed to process third-party request: %v", err)
 				responseCode = false
-				responseMessage = "Failed to create transaction record"
+				responseMessage = "Failed to process third-party request"
 				resp := responses.DataBundleResponse{
 					StatusCode:    responseCode,
 					StatusMessage: responseMessage,
@@ -687,7 +527,7 @@ func (c *RequestController) BuyDataBundle() {
 				c.Data["json"] = resp
 			}
 		} else {
-			logs.Error("Customer not found: %v", err)
+			logs.Error("Failed to create transaction record: %v", err)
 			responseCode = false
 			responseMessage = "Failed to create transaction record"
 			resp := responses.DataBundleResponse{
@@ -697,17 +537,14 @@ func (c *RequestController) BuyDataBundle() {
 			}
 			c.Data["json"] = resp
 		}
-	} else {
-		logs.Error("Status not found: %v", err)
-		responseCode = false
-		responseMessage = "Failed to create transaction record"
-		resp := responses.DataBundleResponse{
-			StatusCode:    responseCode,
-			StatusMessage: responseMessage,
-			Result:        nil,
-		}
-		c.Data["json"] = resp
 	}
+	response := responses.DataBundleResponse{
+		StatusCode:    responseCode,
+		StatusMessage: responseMessage,
+		Result:        nil,
+	}
+	c.Data["json"] = response
+
 	logs.Info("Response sent: ", c.Data["json"])
 	c.ServeJSON()
 }
