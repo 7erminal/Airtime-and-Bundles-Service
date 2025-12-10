@@ -248,7 +248,7 @@ func (c *RequestController) BuyAirtime() {
 						Amount:            req.Amount,
 						Network:           req.Network,
 						Destination:       req.Destination,
-						TransactionStatus: status.Status,
+						TransactionStatus: status.StatusDescription,
 						TransactionDate:   time.Now().Format(time.RFC3339),
 					}
 				}
@@ -758,7 +758,7 @@ func (c *RequestController) GetBundles() {
 
 				}
 			} else {
-				logs.Error("Failed to get customer by phone number: %v", err)
+				logs.Error("Failed to create transaction record: %v", err)
 				responseCode = false
 				responseMessage = "Failed to create transaction record"
 				resp := responses.GetBundlesResponse{
