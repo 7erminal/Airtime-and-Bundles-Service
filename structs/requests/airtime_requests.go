@@ -1,7 +1,7 @@
 package requests
 
 type AirtimeRequest struct {
-	TransactionId string  `json:"request_id" valid:"required~Request ID is required"`
+	TransactionId string  `json:"transaction_id" valid:"required~Request ID is required"`
 	Amount        float64 `json:"amount" valid:"required~Amount is required"`
 	Network       string  `json:"network" valid:"required~Network is required"`
 	Destination   string  `json:"destination" valid:"required~Destination is required"`
