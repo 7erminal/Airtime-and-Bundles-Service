@@ -15,7 +15,6 @@ type DataBundleRequest struct {
 	Destination   string  `json:"destination" valid:"required~Destination is required"`
 	BundleId      string  `json:"bundle_id" valid:"required~Bundle ID is required"`
 	TransactionId string  `json:"transaction_id" valid:"required~Transaction ID is required"`
-	ServiceCode   string  `json:"service_code" valid:"required~Service code is required"`
 }
 
 type BundleKeyRequest struct {

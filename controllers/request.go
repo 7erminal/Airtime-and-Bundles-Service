@@ -81,12 +81,12 @@ func (c *RequestController) BuyAirtime() {
 
 		logs.Info("Network is ", req.Network)
 
-		networkCode := helpers.GetNetworkCode(req.Network, req.ServiceCode)
-
-		logs.Info("Network code returned is ", networkCode)
-
 		billerCode := "AIRTIME"
 		biller, err := models.GetBillerByCode(billerCode)
+
+		networkCode := helpers.GetNetworkCode(req.Network, billerCode)
+
+		logs.Info("Network code returned is ", networkCode)
 
 		if err == nil {
 			// Formulate the request to send to the third-party service
@@ -342,12 +342,12 @@ func (c *RequestController) BuyDataBundle() {
 			logs.Error("Failed to get callback URL: %v", err)
 		}
 
-		logs.Info("About to get network code for service: ", req.ServiceCode, " and network: ", req.Network)
-
-		networkCode := helpers.GetNetworkCode(req.Network, req.ServiceCode)
-
 		billerCode := "DATA_BUNDLE"
 		biller, err := models.GetBillerByCode(billerCode)
+
+		logs.Info("About to get network code for service: ", billerCode, " and network: ", req.Network)
+
+		networkCode := helpers.GetNetworkCode(req.Network, billerCode)
 
 		if err == nil {
 
