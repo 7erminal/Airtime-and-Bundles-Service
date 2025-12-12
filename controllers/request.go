@@ -63,12 +63,12 @@ func (c *RequestController) BuyAirtime() {
 		TransactionDate:   time.Now().Format(time.RFC3339),
 	}
 
-	txnIdIn, err := strconv.ParseInt(req.TransactionId, 10, 64)
-	if err != nil {
-		logs.Error("Invalid transaction ID: %v", err)
-	}
+	// txnIdIn, err := strconv.ParseInt(req.TransactionId, 10, 64)
+	// if err != nil {
+	// 	logs.Error("Invalid transaction ID: %v", err)
+	// }
 
-	if transaction, err := models.GetBil_transactionsById(txnIdIn); err == nil {
+	if transaction, err := models.GetBil_transactionsByTransactionRefNum(req.TransactionId); err == nil {
 		// Go to fulfillment
 		callbackurl := ""
 		if cbr, err := models.GetApplication_propertyByCode("AIRTIME_CALLBACK_URL"); err == nil {
@@ -319,12 +319,12 @@ func (c *RequestController) BuyDataBundle() {
 		TransactionDate:   time.Now().Format(time.RFC3339),
 	}
 
-	txnId, err := strconv.ParseInt(req.TransactionId, 10, 64)
-	if err != nil {
-		logs.Error("Invalid transaction ID: %v", err)
-	}
+	// txnId, err := strconv.ParseInt(req.TransactionId, 10, 64)
+	// if err != nil {
+	// 	logs.Error("Invalid transaction ID: %v", err)
+	// }
 
-	if transaction, err := models.GetBil_transactionsById(txnId); err == nil {
+	if transaction, err := models.GetBil_transactionsByTransactionRefNum(req.TransactionId); err == nil {
 		// Go to fulfillment
 		// Formulate the request to send to the third-party service
 		selectedBundle := requests.BundleKeyRequest{
