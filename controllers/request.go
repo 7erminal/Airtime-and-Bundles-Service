@@ -47,7 +47,7 @@ func (c *RequestController) BuyAirtime() {
 	phoneNumber := c.Ctx.Input.Header("PhoneNumber")
 	// sourceSystem := c.Ctx.Input.Header("SourceSystem")
 
-	logMessage := "BuyAirtime request received for phone number: " + phoneNumber + " with transaction ID: " + req.TransactionId
+	logMessage := "BuyAirtime request received for phone number: " + phoneNumber + " with transaction ID: " + req.TransactionId + " and network " + req.Network
 	helpers.Logger("info", req.TransactionId, logMessage)
 
 	responseCode := false
