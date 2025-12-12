@@ -79,7 +79,11 @@ func (c *RequestController) BuyAirtime() {
 			logs.Error("Failed to get callback URL: %v", err)
 		}
 
+		logs.Info("Network is ", req.Network)
+
 		networkCode := helpers.GetNetworkCode(req.Network, req.ServiceCode)
+
+		logs.Info("Network code returned is ", networkCode)
 
 		billerCode := "AIRTIME"
 		biller, err := models.GetBillerByCode(billerCode)
