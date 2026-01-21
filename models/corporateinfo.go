@@ -15,12 +15,12 @@ type Corporateinfo struct {
 	Corpid      int
 	Corpname    string    `orm:"size(255)"`
 	Branchid    int       `orm:"column(branchid)"`
-	Corpaddress string    `orm:"size(255)"`
+	Corpaddress string    `orm:"size(255);column(corpaddress)"`
 	Email       string    `orm:"size(100)"`
 	Phone       string    `orm:"size(50)"`
 	Logo        string    `orm:"size(255)"`
-	PrepaidId   string    `orm:"size(255)"`
-	DepositId   string    `orm:"size(255)"`
+	PrepaidId   string    `orm:"size(255);column(prepaidid)"`
+	DepositId   string    `orm:"size(255);column(depositid)"`
 	CreatedAt   time.Time `orm:"type(datetime)"`
 	UpdatedAt   time.Time `orm:"type(datetime)"`
 }
