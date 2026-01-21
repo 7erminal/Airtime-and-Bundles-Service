@@ -15,6 +15,7 @@ type DataBundleRequest struct {
 	Destination   string  `json:"destination" valid:"required~Destination is required"`
 	BundleId      string  `json:"bundle_id" valid:"required~Bundle ID is required"`
 	TransactionId string  `json:"transaction_id" valid:"required~Transaction ID is required"`
+	ClientId      string  `json:"client_id" valid:"required~Client ID is required"`
 }
 
 type BundleKeyRequest struct {
@@ -30,4 +31,5 @@ type DataBundleThirdPartyRequest struct {
 	ClientReference string
 	ExtraData       BundleKeyRequest `json:"extra_data" valid:"required~Extra data is required"`
 	BundleId        string
+	PrepaidId       string
 }

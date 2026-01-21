@@ -14,7 +14,7 @@ import (
 
 func ProcessDataBundlePurchase(c *beego.Controller, req requests.DataBundleThirdPartyRequest) (responses.ThirdPartyDataBundleResponse, error) {
 	host, _ := beego.AppConfig.String("thirdPartyBaseUrl")
-	prepaidId, _ := beego.AppConfig.String("hubtelPrepaidDepositID")
+	prepaidId := req.PrepaidId
 	authorizationKey, _ := beego.AppConfig.String("authorizationKey")
 
 	logs.Info("Sending phone number ", req.PhoneNumber)
@@ -67,9 +67,8 @@ func ProcessDataBundlePurchase(c *beego.Controller, req requests.DataBundleThird
 	return data, nil
 }
 
-func GetDataBundles(c *beego.Controller, networkCode string, destinationNumber string) (responses.ThirdPartyDataBundlesResponse, error) {
+func GetDataBundles(c *beego.Controller, networkCode string, destinationNumber string, prepaidId string) (responses.ThirdPartyDataBundlesResponse, error) {
 	host, _ := beego.AppConfig.String("thirdPartyBaseUrl")
-	prepaidId, _ := beego.AppConfig.String("hubtelPrepaidDepositID")
 	authorizationKey, _ := beego.AppConfig.String("authorizationKey")
 
 	logs.Info("Authorization key is " + authorizationKey)
