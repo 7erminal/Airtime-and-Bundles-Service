@@ -16,4 +16,5 @@ type AirtimeThirdPartyRequest struct {
 	Network       string  `json:"network" valid:"required~Network is required"` // Assuming this is the network name
 	CallbackUrl   string  `json:"callback_url" valid:"optional"`                // Optional field for callback URL
 	PrepaidId     string  `json:"prepaid_id" valid:"required~Prepaid ID is required"`
+	AuthKey       string  `json:"auth_key" valid:"required~Auth Key is required"`
 }

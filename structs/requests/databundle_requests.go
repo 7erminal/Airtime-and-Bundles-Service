@@ -32,4 +32,5 @@ type DataBundleThirdPartyRequest struct {
 	ExtraData       BundleKeyRequest `json:"extra_data" valid:"required~Extra data is required"`
 	BundleId        string
 	PrepaidId       string
+	AuthKey         string
 }

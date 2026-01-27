@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"encoding/base64"
+
 	"github.com/beego/beego/v2/core/logs"
 )
 
@@ -43,4 +45,19 @@ func Logger(logLevel string, requestId string, message string) {
 	default:
 		logs.Info(out)
 	}
+}
+
+func ConvertToBase64(input string) string {
+	encoded := ""
+	// encoding logic here
+	encoded = base64.StdEncoding.EncodeToString([]byte(input))
+	return encoded
+}
+
+func ConvertFromBase64(encoded string) (string, error) {
+	decodedBytes, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", err
+	}
+	return string(decodedBytes), nil
 }

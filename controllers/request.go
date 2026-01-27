@@ -91,6 +91,7 @@ func (c *RequestController) BuyAirtime() {
 			logs.Info("Network code returned is ", networkCode)
 
 			if err == nil {
+				authkey := helpers.ConvertToBase64(corpInfo.ApiId + ":" + corpInfo.ApiKey)
 				// Formulate the request to send to the third-party service
 				tReq := requests.AirtimeThirdPartyRequest{
 					PhoneNumber:   phoneNumber,
@@ -100,6 +101,7 @@ func (c *RequestController) BuyAirtime() {
 					TransactionId: transaction.TransactionRefNumber, // Use the request ID as the transaction ID
 					CallbackUrl:   callbackurl,                      // Optional field for callback URL
 					PrepaidId:     corpInfo.PrepaidId,
+					AuthKey:       authkey,
 				}
 
 				// Insert in INS Transactions table
@@ -361,7 +363,7 @@ func (c *RequestController) BuyDataBundle() {
 			networkCode := helpers.GetNetworkCode(req.Network, billerCode)
 
 			if err == nil {
-
+				authkey := helpers.ConvertToBase64(corpInfo.ApiId + ":" + corpInfo.ApiKey)
 				tReq := requests.DataBundleThirdPartyRequest{
 					PhoneNumber:     phoneNumber,
 					Amount:          req.Amount,
@@ -372,6 +374,7 @@ func (c *RequestController) BuyDataBundle() {
 					ExtraData:       selectedBundle,                   // Assuming this is the bundle key request
 					BundleId:        req.BundleId,                     // Assuming this is the bundle ID
 					PrepaidId:       corpInfo.PrepaidId,
+					AuthKey:         authkey,
 				}
 
 				// Insert in INS Transactions table
@@ -718,8 +721,9 @@ func (c *RequestController) GetBundles() {
 								return
 							}
 							// networkCode := helpers.GetNetworkCode(req.Network, service.ServiceCode)
-							logs.Info("Fetching bundles for network ID: ", thirdPartyNetworkId)
-							bundles, err := thirdparty.GetDataBundles(&c.Controller, thirdPartyNetworkId, destinationPhoneNumber, corpInfo.PrepaidId)
+							authkey := helpers.ConvertToBase64(corpInfo.ApiId + ":" + corpInfo.ApiKey)
+							logs.Info("Fetching bundles for network ID: ", thirdPartyNetworkId, " Auth key is ", authkey)
+							bundles, err := thirdparty.GetDataBundles(&c.Controller, thirdPartyNetworkId, destinationPhoneNumber, corpInfo.PrepaidId, authkey)
 
 							if err == nil {
 								if bundles.ResponseCode == "0000" {

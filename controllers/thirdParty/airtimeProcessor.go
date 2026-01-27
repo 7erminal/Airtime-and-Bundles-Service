@@ -22,7 +22,7 @@ func containsIgnoreCase(s, substr string) bool {
 func ProcessAirtime(c *beego.Controller, req requests.AirtimeThirdPartyRequest) (responses.ThirdPartyAirtimeResponse, error) {
 	host, _ := beego.AppConfig.String("thirdPartyBaseUrl")
 	prepaidId := req.PrepaidId
-	authorizationKey, _ := beego.AppConfig.String("authorizationKey")
+	authorizationKey := req.AuthKey
 
 	logs.Info("Sending phone number ", req.PhoneNumber)
 	logs.Info("Network is ", req.Network)
