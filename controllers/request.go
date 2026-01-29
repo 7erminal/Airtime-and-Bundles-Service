@@ -710,6 +710,7 @@ func (c *RequestController) GetBundles() {
 						// 		break
 						// 	}
 						// }
+						logs.Info("Checking for client ID ", clientId)
 						clientId_, _ := strconv.ParseInt(clientId, 10, 64)
 						if corpInfo, err := models.GetCorporateinfoById(clientId_); err == nil {
 							thirdPartyNetworkId := network.NetworkReferenceId
