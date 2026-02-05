@@ -5,6 +5,7 @@ import (
 	"airtime_payment_service/helpers"
 	"airtime_payment_service/structs/requests"
 	"airtime_payment_service/structs/responses"
+	"bytes"
 	"encoding/json"
 	"io"
 
@@ -100,7 +101,12 @@ func GetDataBundles(c *beego.Controller, networkCode string, destinationNumber s
 		c.Data["json"] = err.Error()
 	}
 
-	logs.Info("Raw response received is ", res)
+	var prettyJSON bytes.Buffer
+	if err := json.Indent(&prettyJSON, read, "", "  "); err != nil {
+		logs.Info("Raw response received is ", string(read))
+	} else {
+		logs.Info("Raw response received is \n", prettyJSON.String())
+	}
 	// data := map[string]interface{}{}
 	// var dataOri responses.UserOriResponseDTO
 	var data responses.ThirdPartyDataBundlesResponse
